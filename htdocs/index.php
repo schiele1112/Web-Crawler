@@ -119,19 +119,32 @@ if (!$result = $mysqli->query($sql)) {
 		foreach($links as $l) {
 			try {
 				#echo "<br>Link: $l";
-				if(str_starts_with($l, '/')) {
-					$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
-					#echo "<br>$sql";
-					$result2 = $mysqli2->query($sql);
-				} elseif(str_starts_with($l, 'https://')) {
-					$l = str_replace('https://', '', $l);
-					$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
-					#echo "<br>$sql";
-					$result2 = $mysqli2->query($sql);
+				if (str_contains($l, '.css') or str_contains($l, '.xml') or str_starts_with($l, 'javascript:')  ) {
+					
 				} else {
-					$sql = "insert into link (uri, visited) values ('".$row['uri']."/".$l."', 0)";
-					#echo "<br>$sql";
+					$sql = "insert into link (uri, visited) values ('".$l."', 0)";
 					$result2 = $mysqli2->query($sql);
+				/*
+					if(str_starts_with($l, '/')) {
+						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
+						#echo "<br>$sql";
+						$result2 = $mysqli2->query($sql);
+					} elseif(str_starts_with($l, 'https://')) {
+						$l = str_replace('https://', '', $l);
+						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
+						#echo "<br>$sql";
+						$result2 = $mysqli2->query($sql);
+					} elseif(str_starts_with($l, 'http://')) {
+						$l = str_replace('http://', '', $l);
+						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
+						#echo "<br>$sql";
+						$result2 = $mysqli2->query($sql);
+					} else {
+						$sql = "insert into link (uri, visited) values ('".$row['uri']."/".$l."', 0)";
+						#echo "<br>$sql";
+						$result2 = $mysqli2->query($sql);
+					}
+					*/
 				}
 			} catch (Exception $e) {
 				echo 'Exception abgefangen: ',  $e->getMessage(), "\n";
