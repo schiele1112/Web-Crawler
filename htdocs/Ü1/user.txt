@@ -1,7 +1,0 @@
-id;firstname;lastname;age
-1;Peter;Norton;23
-2;Hanna;Mayers;25
-100;"Hannes";;
-100;"Hannes";;
-100;"Hannes";;
-100;"Hannes";;
