@@ -105,7 +105,6 @@ foreach($links as $l) {
 ini_set('max_execution_time', '1000'); //1000 seconds = 16 minutes
 # Links von DB holen
 $mysqli = new mysqli("localhost", "root", "", "webcrawler");
-$mysqli2 = new mysqli("localhost", "root", "", "webcrawler");
 	
 $sql = "select uri from link where visited = 0";
 #$sql = "select uri from link";
@@ -119,32 +118,34 @@ if (!$result = $mysqli->query($sql)) {
 		foreach($links as $l) {
 			try {
 				#echo "<br>Link: $l";
-				if (str_contains($l, '.css') or str_contains($l, '.xml') or str_starts_with($l, 'javascript:')  ) {
+				if (!str_contains($l, '.css') and !str_contains($l, '.xml') and !str_starts_with($l, 'javascript:' ) and !str_contains($l, '.dll') and !str_contains($l, '.aspx') ) {
 					
-				} else {
-					$sql = "insert into link (uri, visited) values ('".$l."', 0)";
-					$result2 = $mysqli2->query($sql);
-				/*
+					# Hashtags entfernen
+					if(str_contains($l, '#'))
+						$l = substr($l, 0, strpos($l, "#"));
+						
+					# / am Ende entfernen
+					if(substr($l, -1) == "/") {
+						$l = substr($l, 0, -1);
+					}
+							
 					if(str_starts_with($l, '/')) {
 						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
-						#echo "<br>$sql";
-						$result2 = $mysqli2->query($sql);
-					} elseif(str_starts_with($l, 'https://')) {
+						$result2 = $mysqli->query($sql);
+					} elseif($l == "") {
+					}
+					elseif(str_starts_with($l, 'https://')) {
 						$l = str_replace('https://', '', $l);
-						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
-						#echo "<br>$sql";
-						$result2 = $mysqli2->query($sql);
+						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
+						$result2 = $mysqli->query($sql);
 					} elseif(str_starts_with($l, 'http://')) {
 						$l = str_replace('http://', '', $l);
-						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
-						#echo "<br>$sql";
-						$result2 = $mysqli2->query($sql);
+						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
+						$result2 = $mysqli->query($sql);
 					} else {
 						$sql = "insert into link (uri, visited) values ('".$row['uri']."/".$l."', 0)";
-						#echo "<br>$sql";
-						$result2 = $mysqli2->query($sql);
+						$result2 = $mysqli->query($sql);
 					}
-					*/
 				}
 			} catch (Exception $e) {
 				echo 'Exception abgefangen: ',  $e->getMessage(), "\n";
@@ -153,7 +154,7 @@ if (!$result = $mysqli->query($sql)) {
 		$sql = "update link
 				set visited = 1
 				where uri = '".$row['uri']."'";
-		$result2 = $mysqli2->query($sql);
+		$result2 = $mysqli->query($sql);
 	}		
 }
 $result->close();
