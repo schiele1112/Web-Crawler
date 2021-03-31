@@ -58,6 +58,16 @@ class Crawler {
 			return !empty($links[1]) ? $links[1] : FALSE;
 		}
 	}
+	
+	protected function _get_words() {
+		if (!empty($this->markup)){
+			//preg_match_all('/<a([^>]+)\>(.*?)\<\/a\>/i', $this->markup, $links);
+			#preg_match_all('/<p>(.*?)</p>/', $this->markup, $words);
+			#preg_match("'<p>(.*?)</p>'si", $source, $match);
+			preg_match_all("'<p>(.*?)</p>'si", $this->markup, $words);
+			return !empty($words[1]) ? $words[1] : FALSE;
+		}
+	}
 }
 
 /*
@@ -88,6 +98,73 @@ crawl ( $URL )
 <h2>Webcrawler</h2>
 
 <?php
+
+function LinkCrawler($link, $mysqli)
+{
+	$crawl = new Crawler('https://'.$link);
+	$links = $crawl->get('links');
+	$words = $crawl->get('words');
+	#Worter abspeichern
+	echo $link;
+	var_dump($words);
+	echo"<br>";
+	
+	#Links abspeichern
+			foreach($links as $l) {
+			try {
+				#echo "<br>Link: $l";
+				if (!str_contains($l, '.css') and !str_contains($l, '.xml') and !str_starts_with($l, 'javascript:' ) and !str_contains($l, '.dll') and !str_contains($l, '.aspx') ) {
+					#Domain überprüfen
+					if(str_starts_with($l, 'https://') or str_starts_with($l, 'http://'))
+					{
+						$sql = "select * from domain";
+						$domains = $mysqli->query($sql);
+						$gooddomain = 0;
+						while ($row = $domains->fetch_array(MYSQLI_ASSOC)) {
+							if(str_contains($l, $row['domain']))
+							{
+								$gooddomain = 1;
+							}
+						}
+						if($gooddomain == 0)
+						{
+							#echo $l."<br>";
+							continue;
+						}
+					}
+					# Hashtags entfernen
+					if(str_contains($l, '#'))
+						$l = substr($l, 0, strpos($l, "#"));
+						
+					# / am Ende entfernen
+					if(substr($l, -1) == "/") {
+						$l = substr($l, 0, -1);
+					}
+							
+					if(str_starts_with($l, '/')) {
+						$sql = "insert into link (uri, visited) values ('".$link.$l."', 0)";
+						$result2 = $mysqli->query($sql);
+					} elseif($l == "") {
+					}
+					elseif(str_starts_with($l, 'https://')) {
+						$l = str_replace('https://', '', $l);
+						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
+						$result2 = $mysqli->query($sql);
+					} elseif(str_starts_with($l, 'http://')) {
+						$l = str_replace('http://', '', $l);
+						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
+						$result2 = $mysqli->query($sql);
+					} else {
+						$sql = "insert into link (uri, visited) values ('".$link."/".$l."', 0)";
+						$result2 = $mysqli->query($sql);
+					}
+						
+				}
+			} catch (Exception $e) {
+				echo 'Exception abgefangen: ',  $e->getMessage(), "\n";
+			}				
+		}
+}
 /*
 foreach($links as $l) {
 	if (substr($l,0,7)!='http://')
@@ -104,60 +181,29 @@ foreach($links as $l) {
 */
 ini_set('max_execution_time', '1000'); //1000 seconds = 16 minutes
 # Links von DB holen
+
+##############################################################################
 $mysqli = new mysqli("localhost", "root", "", "webcrawler");
 	
-$sql = "select uri from link where visited = 0";
+#Worker
+#$sql = "select uri from link where visited = 0";
+$sql = "select uri from link where time_stamp = '' or (now() - time_stamp)>'00:00:00'";
 #$sql = "select uri from link";
 if (!$result = $mysqli->query($sql)) {
 	#FAIL
 } else {
 	while ($row = $result->fetch_array(MYSQLI_ASSOC)) {
 		#echo 'https://'.$row['uri'];
-		$crawl = new Crawler('https://'.$row['uri']);
-		$links = $crawl->get('links');
-		foreach($links as $l) {
-			try {
-				#echo "<br>Link: $l";
-				if (!str_contains($l, '.css') and !str_contains($l, '.xml') and !str_starts_with($l, 'javascript:' ) and !str_contains($l, '.dll') and !str_contains($l, '.aspx') ) {
-					
-					# Hashtags entfernen
-					if(str_contains($l, '#'))
-						$l = substr($l, 0, strpos($l, "#"));
-						
-					# / am Ende entfernen
-					if(substr($l, -1) == "/") {
-						$l = substr($l, 0, -1);
-					}
-							
-					if(str_starts_with($l, '/')) {
-						$sql = "insert into link (uri, visited) values ('".$row['uri'].$l."', 0)";
-						$result2 = $mysqli->query($sql);
-					} elseif($l == "") {
-					}
-					elseif(str_starts_with($l, 'https://')) {
-						$l = str_replace('https://', '', $l);
-						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
-						$result2 = $mysqli->query($sql);
-					} elseif(str_starts_with($l, 'http://')) {
-						$l = str_replace('http://', '', $l);
-						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
-						$result2 = $mysqli->query($sql);
-					} else {
-						$sql = "insert into link (uri, visited) values ('".$row['uri']."/".$l."', 0)";
-						$result2 = $mysqli->query($sql);
-					}
-				}
-			} catch (Exception $e) {
-				echo 'Exception abgefangen: ',  $e->getMessage(), "\n";
-			}				
-		}
-		$sql = "update link
-				set visited = 1
+		
+		LinkCrawler($row['uri'], $mysqli);
+		$sql = "UPDATE link 
+				SET time_stamp = now()
 				where uri = '".$row['uri']."'";
 		$result2 = $mysqli->query($sql);
 	}		
 }
 $result->close();
+##############################################################################
 ?>
 
 <?php
