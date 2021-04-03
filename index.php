@@ -64,7 +64,9 @@ class Crawler {
 			//preg_match_all('/<a([^>]+)\>(.*?)\<\/a\>/i', $this->markup, $links);
 			#preg_match_all('/<p>(.*?)</p>/', $this->markup, $words);
 			#preg_match("'<p>(.*?)</p>'si", $source, $match);
-			preg_match_all("'<p>(.*?)</p>'si", $this->markup, $words);
+			#preg_match_all("'<p>(.*?)</p>'si", $this->markup, $words);
+			#preg_match_all("'<h[0-9]>(.*?)</h[0-9]>'si", $this->markup, $words);
+			preg_match_all("'<p>(.*?)</p>|<h[1-9]>(.*?)</h[1-9]>'si", $this->markup, $words);
 			return !empty($words[1]) ? $words[1] : FALSE;
 		}
 	}
@@ -101,19 +103,139 @@ crawl ( $URL )
 
 function LinkCrawler($link, $mysqli)
 {
+	#echo "Neuer Link<br>";
 	$crawl = new Crawler('https://'.$link);
 	$links = $crawl->get('links');
 	$words = $crawl->get('words');
-	#Worter abspeichern
-	echo $link;
-	var_dump($words);
-	echo"<br>";
 	
+	#echo $link ."<br>";
+	#Leere Elemente entfernen
+	$words = array_filter($words);
+	
+	$wordArray = [];
+	
+	foreach ($words as $text) 
+	{
+		$text = strip_tags($text); #HTML-Tags werden entfernt
+		$text = preg_replace('/\s+/', ' ', $text); #Anhäufung von Leerzeichen entfernen
+		$arrayfillword = explode (" ", $text); #Wörter werden bei Leerzeichen getrennt
+		
+		foreach ($arrayfillword as $text2)
+		{
+			if(!$text2 == "")
+			{
+				array_push($wordArray, $text2);
+			}
+		}
+	}
+	
+	#var_dump($wordArray);
+	
+	$sql = "select id from link where uri = '".$link."'";
+	$result = $mysqli->query($sql);
+	$row = $result->fetch_array(MYSQLI_ASSOC);
+	$uriId = $row['id'];
+
+	#Worter in DB abspeichern
+	
+	foreach ($wordArray as $word) {
+		try {
+			#echo "Neues Wort<br>";
+			#Prüfen ob Wort bereits in DB
+			#$sql = "select * from word where word = '".$word."'";
+			#$bool = $mysqli->query($sql);
+			#$row = $bool->fetch_array(MYSQLI_NUM);
+			#$query = mysqli_query($mysqli, "select * from word where word = '".$word."'");
+
+			$sql = "select * from word where word = ?";
+			$stmt = $mysqli->prepare($sql);
+			$stmt->bind_param("s", $word);
+			$stmt->execute();
+			$result = $stmt->get_result();
+			$row_cnt = $result->num_rows;
+			#$row = $result->fetch_assoc();
+			
+			if (!$result)
+			{
+				echo "<br>Fehler beim Prüfen ob Wort bereits in DB. Das Wort lautet: " .$word;
+				continue;			
+			}
+
+			if($row_cnt > 0){
+				#Wort exisitiert bereits
+				
+				#Verlinkung zur URL erstellen
+				$sql = "select id from word where word = ?";
+				$stmt = $mysqli->prepare($sql);
+				$stmt->bind_param("s", $word);
+				$stmt->execute();
+				$result = $stmt->get_result();
+				$row = $result->fetch_assoc();			
+				#$sql = "select id from word where word = '".$word."'";
+				#$result = $mysqli->query($sql);
+				#$row = $result->fetch_array(MYSQLI_ASSOC);
+				$wordId = $row['id'];
+				
+				$sql = "insert into word_link (id_word, id_link) values (?, ?)";
+				$stmt = $mysqli->prepare($sql);
+				$stmt->bind_param("ii", $wordId, $uriId);
+				$stmt->execute();
+				#$sql = "insert into word_link (id_word, id_link) values (".$wordId.", ".$uriId.")";
+				#$result = $mysqli->query($sql);
+				
+			}else{
+				#Wort exisitiert nicht
+				$sql = "insert into word (word) values (?)";
+				$stmt = $mysqli->prepare($sql);
+				$stmt->bind_param("s", $word);
+				$stmt->execute();
+				#$sql = "insert into word (word) values ('".$word."')";
+				#$result = $mysqli->query($sql);
+				
+				#Verlinkung zur URL erstellen
+				$sql = "select id from word where word = ?";
+				$stmt = $mysqli->prepare($sql);
+				$stmt->bind_param("s", $word);
+				$stmt->execute();
+				$result = $stmt->get_result();				
+				#$sql = "select id from word where word = '".$word."'";
+				#$result = $mysqli->query($sql);
+				if (!$result)
+				{
+					echo "<br>Fehler beim Prüfen ob Wort bereits in DB. Das Wort lautet: " .$word;
+					continue;			
+				}
+				$row = $result->fetch_assoc();
+				#$row = $result->fetch_array(MYSQLI_ASSOC);
+				$wordId = $row['id'];
+				
+				$sql = "insert into word_link (id_word, id_link) values (?, ?)";
+				$stmt = $mysqli->prepare($sql);
+				$stmt->bind_param("ii", $wordId, $uriId);
+				$stmt->execute();
+				#$sql = "insert into word_link (id_word, id_link) values (".$wordId.", ".$uriId.")";
+				#$result = $mysqli->query($sql);	
+			}
+		} catch (Exception $e) {
+				echo "Fehler bei Wort: " .$word;
+				echo 'Exception abgefangen: ',  $e->getMessage(), "\n";
+		}
+	}
+	
+	#(^[^\/]*|^.*\/[^\.]*(|\.(?:php|html|htm)))($|\?.*$)
+	
+	#die();
 	#Links abspeichern
 			foreach($links as $l) {
 			try {
 				#echo "<br>Link: $l";
-				if (!str_contains($l, '.css') and !str_contains($l, '.xml') and !str_starts_with($l, 'javascript:' ) and !str_contains($l, '.dll') and !str_contains($l, '.aspx') ) {
+				
+				#Alter Filter
+				#if (!str_contains($l, '.css') and !str_contains($l, '.xml') and !str_starts_with($l, 'javascript:' ) and !str_contains($l, '.dll') and !str_contains($l, '.aspx') and !str_contains($l, '.json') and !str_contains($l, '.ico') and !str_contains($l, '.png')) {
+				
+				#preg_match_all("'<p>(.*?)</p>|<h[1-9]>(.*?)</h[1-9]>'si", $this->markup, $words);
+					
+				if(preg_match("'(^[^\/]*|^.*\/[^\.]*(|\.(?:php|html|htm)))($|\?.*$)'", $l) and !str_contains($l, 'tel:+')  and !str_contains($l, 'javascript:') ) {
 					#Domain überprüfen
 					if(str_starts_with($l, 'https://') or str_starts_with($l, 'http://'))
 					{
@@ -142,19 +264,45 @@ function LinkCrawler($link, $mysqli)
 					}
 							
 					if(str_starts_with($l, '/')) {
+						
+						if(str_contains($link, '/')) {
+							$topLink = substr($link, 0, strpos($link, "/"));
+							#echo "Fall '/' erkannt. Speichere ".$topLink.$l."<br>";
+							$sql = "insert into link (uri, visited) values ('".$topLink.$l."', 0)";
+							$result2 = $mysqli->query($sql);
+						} else {
+							#echo "Fall '/' erkannt. Speichere ".$link.$l."<br>";
+							$sql = "insert into link (uri, visited) values ('".$link.$l."', 0)";
+							$result2 = $mysqli->query($sql);						
+						}					
+						/*
+						# Falls Link zu aktueller Seite führt wird der Link nicht gespeichert
+						$lastSection = "/" . substr($link, strrpos($link, '/') + 1);					
+						if($l == $lastSection) {
+							continue;
+						}					
+						echo "<br>";
+						echo $lastSection;
+						echo $l;
+						echo "<br>";
+						echo "Fall '/' erkannt. Speichere ".$link.$l."<br>";
 						$sql = "insert into link (uri, visited) values ('".$link.$l."', 0)";
 						$result2 = $mysqli->query($sql);
+						*/
 					} elseif($l == "") {
 					}
 					elseif(str_starts_with($l, 'https://')) {
 						$l = str_replace('https://', '', $l);
+						#echo "Fall 'https://' erkannt. Speichere ".$l."<br>";
 						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
 						$result2 = $mysqli->query($sql);
 					} elseif(str_starts_with($l, 'http://')) {
 						$l = str_replace('http://', '', $l);
+						#echo "Fall 'http://' erkannt. Speichere ".$l."<br>";
 						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
 						$result2 = $mysqli->query($sql);
 					} else {
+						#echo "Kein spezieller Fall erkannt. Speichere ".$link."/".$l."<br>";
 						$sql = "insert into link (uri, visited) values ('".$link."/".$l."', 0)";
 						$result2 = $mysqli->query($sql);
 					}
@@ -187,7 +335,8 @@ $mysqli = new mysqli("localhost", "root", "", "webcrawler");
 	
 #Worker
 #$sql = "select uri from link where visited = 0";
-$sql = "select uri from link where time_stamp = '' or (now() - time_stamp)>'00:00:00'";
+#$sql = "select uri from link where time_stamp = '' or (now() - time_stamp)>'24:00:00'";
+$sql = "select * from link where TIMEDIFF(now(),time_stamp) > '00:10:00' ";
 #$sql = "select uri from link";
 if (!$result = $mysqli->query($sql)) {
 	#FAIL
@@ -203,62 +352,8 @@ if (!$result = $mysqli->query($sql)) {
 	}		
 }
 $result->close();
+$mysqli->close();
 ##############################################################################
 ?>
-
-<?php
- 
-if(isset($_POST['register'])) {
-
-    $firstname = $_POST['firstname'];
-	$lastname = $_POST['lastname'];
-	$age = $_POST['age'];
-    	
-	$mysqli = new mysqli("localhost", "root", "", "mydb");	
-	$sql = "insert into user (firstname, lastname, age) values ('".$firstname."', '".$lastname."', ".$age.");";
-	$result = $mysqli->query($sql);
-	$mysqli->close();
-}
-
-if(isset($_POST['delete'])) {
-
-    $user_id = $_POST['user_id'];
-	
-	$mysqli = new mysqli("localhost", "root", "", "mydb");	
-	$sql = "delete from user where id = ".$user_id.";";
-	$result = $mysqli->query($sql);
-	$mysqli->close();
-}
- 
-?>
-
-
-<?php
-/*
-	$mysqli = new mysqli("localhost", "root", "", "mydb");
-	
-	$sql = "select u.lastname as 'Nachname', u.age as 'Alter', c.brand as 'Automarke', u.id as 'Benutzer ID'
-			from user u
-			left join car c on c.id = u.id_car";
-	if (!$result = $mysqli->query($sql)) {
-		#FAIL
-	} else {
-		# create table
-		$table = '<table>';
-		$header = false;
-		while ($row = $result->fetch_array(MYSQLI_ASSOC)) {	
-			if($header==false){
-			  $table .= '<thead><tr><th>'.implode('</th><th>',array_keys($row)).'</tr></thead><tbody>';
-			  $header=true;
-			}
-			$table .= '<tr><td>'.implode('</td><td>',$row).'</td></tr>';
-		}
-		$table .= '</tbody></table>';		
-		echo $table;		
-	}
-	$result->close();
-	*/
-?>
-
 </body>
 </html> 

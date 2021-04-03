@@ -1,0 +1,9 @@
+(^[^\/]*|^.*\/[^\.]*(|\.(?:php|html|htm)))($|\?.*$)
+
+www.dhbw-heidenheim.de/forschung-transfer/forschung-an-der-dhbw-heidenheim/javascript:linkTo_UnCryptMailto(%27nbjmup%2Bcbscbsb%5C%2FtufjofsAeicx.ifjefoifjn%5C%2Fef%27);
+www.dhbw-heidenheim.de/forschung-transfer/forschung-an-der-dhbw-heidenheim/javascript:linkTo_UnCryptMailto(%27nbjmup%2Bcbscbsb%5C%2FtufjofsAeicx.ifjefoifjn%5C%2Fef%27);
+select (now() - time_stamp)
+from link
+
+
+TIMEDIFF("2017-06-25 13:10:11", "2017-06-15 13:10:10");
