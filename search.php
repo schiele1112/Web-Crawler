@@ -39,7 +39,7 @@ if(isset($_POST['addUrl'])) {
 
 <h2>URL hinzufügen</h2>
 <form method="post">
-	URL:<br>
+	URL im Format 'www.xyz.de':<br>
 	<input size="40" name="url" required="true"><br><br>	 
 	<input type="submit" name="addUrl" value="Hinzufügen">
 </form>
@@ -59,12 +59,34 @@ if(isset($_POST['addUrl'])) {
 	
 		$searchString = $_POST['searchString'];
 		
-		$mysqli = new mysqli("localhost", "root", "", "webcrawler");		
+		#Suchbegriffe bei Leerzeichen trennen
+		$searchWords = explode (" ", $searchString);
+		/*
 		$sql = "select DISTINCT l.uri as 'Links'
 				from word_link wl
 				left join link l on l.id = wl.id_link
 				left join word w on w.id = wl.id_word
 				where w.word like '%".$searchString."%'";
+		*/
+		
+		#SQL-Abfrage zusammenbauen
+		$sql = "select DISTINCT l.uri as 'Links'
+				from word_link wl
+				left join link l on l.id = wl.id_link
+				left join word w on w.id = wl.id_word
+				where ";
+		$first = 1;
+		foreach($searchWords as $searchWord) {
+			if($first == 1) {
+				$sql .= "w.word like '%".$searchWord."%'";
+				$first = 0;
+			} else {
+				$sql .= " or w.word like '%".$searchWord."%'";
+			}			
+		}
+		
+		$mysqli = new mysqli("localhost", "root", "", "webcrawler");		
+		
 		if (!$result = $mysqli->query($sql)) {
 			/* FAIL */
 		} else {
