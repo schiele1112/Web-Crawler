@@ -8,7 +8,7 @@
 
 <?php
 
-error_reporting(E_ERROR | E_PARSE);
+#error_reporting(E_ERROR | E_PARSE);
 ini_set('max_execution_time', '1000'); //1000 seconds = 16 minutes
 
 class Crawler {
@@ -207,27 +207,27 @@ function linkCrawler($link, $mysqli) {
 						if(str_contains($link, '/')) {
 							$topLink = substr($link, 0, strpos($link, "/"));
 							#echo "Fall '/' erkannt. Speichere ".$topLink.$l."<br>";
-							$sql = "insert into link (uri, visited) values ('".$topLink.$l."', 0)";
+							$sql = "insert into link (uri) values ('".$topLink.$l."')";
 							$result = $mysqli->query($sql);
 						} else {
 							#echo "Fall '/' erkannt. Speichere ".$link.$l."<br>";
-							$sql = "insert into link (uri, visited) values ('".$link.$l."', 0)";
+							$sql = "insert into link (uri) values ('".$link.$l."')";
 							$result = $mysqli->query($sql);						
 						}
 					} elseif($l == "") {
 					} elseif(str_starts_with($l, 'https://')) {
 						$l = str_replace('https://', '', $l);
 						#echo "Fall 'https://' erkannt. Speichere ".$l."<br>";
-						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
+						$sql = "insert into link (uri) values ('".$l."')";
 						$result = $mysqli->query($sql);
 					} elseif(str_starts_with($l, 'http://')) {
 						$l = str_replace('http://', '', $l);
 						#echo "Fall 'http://' erkannt. Speichere ".$l."<br>";
-						$sql = "insert into link (uri, visited) values ('".$l."', 0)";
+						$sql = "insert into link (uri) values ('".$l."')";
 						$result = $mysqli->query($sql);
 					} else {
 						#echo "Kein spezieller Fall erkannt. Speichere ".$link."/".$l."<br>";
-						$sql = "insert into link (uri, visited) values ('".$link."/".$l."', 0)";
+						$sql = "insert into link (uri) values ('".$link."/".$l."')";
 						$result = $mysqli->query($sql);
 					}					
 				}
@@ -247,20 +247,21 @@ function linkCrawler($link, $mysqli) {
 ##################################################################################
 
 $mysqli = new mysqli("localhost", "root", "", "webcrawler");
-$sql = "select * from link where TIMEDIFF(now(),time_stamp) > '00:10:00' or time_stamp is NULL";
-if (!$result = $mysqli->query($sql)) {
-	echo "Worker: Fehler beim Abfragen der zu crawlenden Links";
-} else {
-	while ($row = $result->fetch_array(MYSQLI_ASSOC)) {		
-		linkCrawler($row['uri'], $mysqli);
-		$sql = "UPDATE link
-				SET time_stamp = now()
-				where uri = '".$row['uri']."'";
-		$result2 = $mysqli->query($sql);
-	}		
+while(true) {
+	$sql = "select * from link where TIMEDIFF(now(),time_stamp) > '24:00:00' or time_stamp is NULL";
+	if (!$result = $mysqli->query($sql)) {
+		echo "Worker: Fehler beim Abfragen der zu crawlenden Links";
+	} else {
+		while ($row = $result->fetch_array(MYSQLI_ASSOC)) {	
+			linkCrawler($row['uri'], $mysqli);
+			$sql = "UPDATE link
+					SET time_stamp = now()
+					where uri = '".$row['uri']."'";
+			$result2 = $mysqli->query($sql);
+		}
+		$result->close();
+	}
 }
-$result->close();
-$mysqli->close();
 ?>
 </body>
 </html> 

@@ -52,7 +52,6 @@ if(isset($_POST['addUrl'])) {
 	<input type="submit" name="search" value="Suchen">
 </form>
 
-
 <?php
 
 	if(isset($_POST['search'])) {		
@@ -61,13 +60,6 @@ if(isset($_POST['addUrl'])) {
 		
 		#Suchbegriffe bei Leerzeichen trennen
 		$searchWords = explode (" ", $searchString);
-		/*
-		$sql = "select DISTINCT l.uri as 'Links'
-				from word_link wl
-				left join link l on l.id = wl.id_link
-				left join word w on w.id = wl.id_word
-				where w.word like '%".$searchString."%'";
-		*/
 		
 		#SQL-Abfrage zusammenbauen
 		$sql = "select DISTINCT l.uri as 'Links'
@@ -99,7 +91,6 @@ if(isset($_POST['addUrl'])) {
 				  $table .= '<thead><tr><th>'.implode('</th><th>',array_keys($row)).'</tr></thead><tbody>';
 				  $header=true;
 				}
-				#<a href="/service-einrichtungen/bibliothek">Bibliothek&nbsp;›</a>
 				$table .= '<tr><td><a href="https://'.implode('</td><td>',$row).'">https://'.implode('</td><td>',$row).'</a></td></tr>';
 				$counter++;
 			}
